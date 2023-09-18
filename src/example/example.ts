@@ -21,7 +21,7 @@ async function main() {
     const batchesSource = new AsyncMultiplexer<StubData>({
         batchSize: 10,
         source: itemsSource(),
-    }).start();
+    });
 
     async function handler(batch: StubData[]) {
         // emulate hard work

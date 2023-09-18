@@ -3,9 +3,9 @@ interface AsyncMultiplexerOptions<T> {
     batchSize: number;
 }
 
-export class AsyncMultiplexer<T> {
+export class AsyncMultiplexer<T> implements AsyncIterable<T[]> {
     constructor(private options: AsyncMultiplexerOptions<T>) {}
-    async *start(): AsyncGenerator<T[]> {
+    async *[Symbol.asyncIterator](): AsyncGenerator<T[]> {
         let currentBatch = [];
         for await (const data of this.options.source) {
             currentBatch.push(data);

@@ -1,10 +1,9 @@
-import { HandlerResponse } from './Handler';
-import { Handler } from './Handler';
+import { Handler, HandlerResponse } from './Handler';
 import { TaskWorker } from './TaskWorker';
 
 interface AsyncRunnerOptions<Req, Res> {
     concurrency: number;
-    source: AsyncGenerator<Req>;
+    source: AsyncIterable<Req>;
     handler: Handler<Req, Res>;
     rateLimitTimeout: number;
     onResponse: (response: HandlerResponse<Res>) => void;
