@@ -1,53 +1,50 @@
-import { AsyncRunner } from '../AsyncRunner/AsyncRunner';
-import { Handler } from '../AsyncRunner/Handler';
+import { Readable } from 'stream';
+import { pool } from '../AsyncPool';
+import { HandlerResponse } from '../Handler';
+import { batch } from '../batch';
+import { from } from '../from';
+import { longJsonDataSource } from './longJsonDataSource';
 import { parse } from 'jsonlines';
-import { StubData, longJsonDataSource } from './longJsonDataSource';
-import { Readable } from 'node:stream';
-import { AsyncMultiplexer } from '../AsyncMultiplexer/AsyncMultiplexer';
+import { Iter } from '../Iter';
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+async function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function main() {
-    // Emulate a data source
-    async function* itemsSource(): AsyncGenerator<StubData> {
-        for await (const a of Readable.from(longJsonDataSource()).pipe(
-            parse()
-        )) {
-            yield a;
-        }
-    }
-
-    // Group the data items into batches
-    const batchesSource = new AsyncMultiplexer<StubData>({
-        batchSize: 10,
-        source: itemsSource(),
-    });
-
-    async function handler(batch: StubData[]) {
-        // emulate hard work
-        await sleep(1000);
-
+    async function handler(
+        items: number[]
+    ): Promise<HandlerResponse<number[]>> {
+        await sleep(Math.random() * 3000);
         return {
             kind: 'success' as const,
-            value: batch.map((a) => parseFloat(a.baz) * 100),
+            value: items,
         };
     }
 
-    // Process the batches:
-    // call handler for each batch
-    // concurrently in 4 "threads"
-    const runner = new AsyncRunner<StubData[], number[]>({
-        source: batchesSource,
-        concurrency: 4,
-        rateLimitTimeout: 1000,
-        handler,
-        onResponse: (response) => {
-            // Write log
-            console.log('response:', response);
-        },
-    });
+    const objectsStream = Readable.from(longJsonDataSource()).pipe(parse());
 
-    await runner.start();
+    async function* extractBaz(input: Iter<any>): Iter<number> {
+        for await (const item of input) {
+            yield item.baz;
+        }
+    }
+
+    from(objectsStream)
+        .pipe(extractBaz)
+        .pipe(batch(10))
+        .pipe(
+            pool(handler, {
+                concurrency: 4,
+                onTaskCompleted(id) {
+                    console.log(`Task ${id} completed`);
+                },
+                onTaskStarted(id) {
+                    console.log(`Task ${id} started`);
+                },
+            })
+        )
+        .consume(console.log);
 }
 
 main().catch(console.error);
