@@ -5,7 +5,8 @@
   "author": "Mark <markh@sweepbright.com>",
   "license": "Unlicensed",
   "scripts": {
-    "example": "tsx ./src/example/example.ts"
+    "example": "tsx ./src/example/example.ts",
+    "example:ping": "tsx ./src/example/ping.ts"
   },
   "dependencies": {
     "@types/jest": "^29.5.5",

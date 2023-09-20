@@ -17,6 +17,6 @@ class Chain<I> {
     }
 }
 
-export function from<T>(source: Iter<T>) {
+export function chain<T>(source: Iter<T>) {
     return new Chain(source);
 }

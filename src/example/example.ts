@@ -1,8 +1,7 @@
 import { Readable } from 'stream';
-import { pool } from '../AsyncPool';
-import { HandlerResponse } from '../Handler';
-import { batch } from '../batch';
-import { from } from '../from';
+import { pool } from '../Pool';
+import { batch } from '../Batch';
+import { chain } from '../Chain';
 import { longJsonDataSource } from './longJsonDataSource';
 import { parse } from 'jsonlines';
 import { Iter } from '../Iter';
@@ -12,14 +11,9 @@ async function sleep(ms: number) {
 }
 
 async function main() {
-    async function handler(
-        items: number[]
-    ): Promise<HandlerResponse<number[]>> {
+    async function handler(items: number[]): Promise<number[]> {
         await sleep(Math.random() * 3000);
-        return {
-            kind: 'success' as const,
-            value: items,
-        };
+        return items;
     }
 
     const objectsStream = Readable.from(longJsonDataSource()).pipe(parse());
@@ -30,7 +24,7 @@ async function main() {
         }
     }
 
-    from(objectsStream)
+    chain(objectsStream)
         .pipe(extractBaz)
         .pipe(batch(10))
         .pipe(

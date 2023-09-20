@@ -1,13 +1,17 @@
-import { Handler, HandlerResponse } from './Handler';
 import { Iter } from './Iter';
+import { OperatorObject } from './Operator';
 
-interface AsyncPoolOptions {
+export interface Handler<Req, Res> {
+    (req: Req): Promise<Res>;
+}
+
+interface PoolOptions {
     concurrency: number;
     onTaskStarted?: (taskId: number) => void;
     onTaskCompleted?: (taskId: number) => void;
 }
 
-export class AsyncPool<Req, Res> {
+export class Pool<Req, Res> implements OperatorObject<Req, Res> {
     #currentTasksRunning = 0;
     #onCapable: (() => void) | null = null;
     #onAnyTaskCompleted: (() => void) | null = null;
@@ -37,7 +41,7 @@ export class AsyncPool<Req, Res> {
 
     constructor(
         private handler: Handler<Req, Res>,
-        private options: AsyncPoolOptions
+        private options: PoolOptions
     ) {}
 
     #onceCapable() {
@@ -56,8 +60,8 @@ export class AsyncPool<Req, Res> {
         });
     }
 
-    async *#process(input: Iter<Req>): AsyncIterable<HandlerResponse<Res>> {
-        const buffer: HandlerResponse<Res>[] = [];
+    async *#process(input: Iter<Req>): AsyncIterable<Res> {
+        const buffer: Res[] = [];
 
         for await (const req of input) {
             // Wait for available concurrency capacity
@@ -82,18 +86,18 @@ export class AsyncPool<Req, Res> {
         // Flush remaining tasks
         while (this.#currentTasksRunning > 0) {
             await this.#onceAnyTaskCompleted();
-            yield buffer.shift() as HandlerResponse<Res>;
+            yield buffer.shift() as Res;
         }
     }
 
-    process = (input: Iter<Req>): AsyncIterable<HandlerResponse<Res>> => {
+    process = (input: Iter<Req>): AsyncIterable<Res> => {
         return this.#process(input);
     };
 }
 
 export function pool<Req, Res>(
     handler: Handler<Req, Res>,
-    options: AsyncPoolOptions
+    options: PoolOptions
 ) {
-    return new AsyncPool(handler, options);
+    return new Pool(handler, options);
 }
